@@ -1,4 +1,8 @@
-﻿.DS_Store
+.DS_Store
 Thumbs.db
 Desktop.ini
 *.tmp
+
+# Review and internal agent notes
+agent answer about the project.md
+Cladue thoughts about the repo and answer it has gotten.md

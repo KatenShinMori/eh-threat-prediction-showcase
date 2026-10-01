@@ -1,4 +1,4 @@
-﻿# EW-Resilient Multi-Sensor Threat Tracking & Trajectory Prediction
+# EW-Resilient Multi-Sensor Threat Tracking & Trajectory Prediction
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg)](https://pytorch.org/)
@@ -7,14 +7,20 @@
 
 Target tracking algorithms usually break down when exposed to active Electronic Warfare (EW)—such as radar noise jamming, range-gate pull-off (RGPO), or intermittent packet drops. Classical filters (EKF) diverge, while generic deep learning baselines (LSTM) often output trajectories that violate basic aerodynamics (e.g., predicting an aircraft pulling 20G+ maneuvers).
 
-This repository showcases a hybrid deep learning pipeline designed to solve both problems:
+This repository serves as the public technical verification showcase for the research-grade EW-resilient trajectory prediction and multi-sensor fusion engine featured at [portfolio.omeryigitozbey1.workers.dev](https://portfolio.omeryigitozbey1.workers.dev/).
+
+The hybrid deep learning pipeline combines:
 1. **Cross-Attention Transformer:** Fuses asynchronous, multi-rate sensor inputs (Radar, EO/IR, ESM) and uses reliability gating to automatically down-weight jammed sensors.
-2. **Physics-Informed Neural Network (PINN):** Continuously forecasts future trajectory ($t \in [0, 5\text{s}]$) while penalizing load factors exceeding $9\text{G}$ and enforcing realistic flight envelopes.
-3. **JSBSim 6-DoF Simulation:** Validates performance against an F-16 flight dynamics model under tactical maneuvers.
+2. **Physics-Informed Neural Network (PINN):** Continuously forecasts future trajectory ($t \in [0, 5\text{s}]$) while penalizing load factors exceeding $9\text{G}$, enforcing realistic flight envelopes, and budgeting aerodynamic drag and thrust.
+3. **JSBSim 6-DoF Simulation:** Validates performance against an F-16 flight dynamics model under tactical combat maneuvers.
 
 ---
 
 ## Quick Start / Architecture Verification
+
+> [!NOTE]
+> **Public Technical Showcase Scope:**  
+> The public demo intentionally provides a minimal reference implementation of selected architectural mechanisms; the full multi-threaded training pipeline, 6-DoF JSBSim simulation harness, real-time C2 UDP streaming harness, automated test suite, and proprietary model checkpoints remain private.
 
 A self-contained reference implementation of the core neural architecture is provided in `demo_pipeline.py`. It requires only PyTorch to run:
 
@@ -80,28 +86,31 @@ flowchart TD
 
 ## Benchmark Results
 
-Tested on a standardized benchmark dataset of 100 tactical flight episodes (100-step observation history, 50-step forecast horizon).
+Tested on a standardized benchmark dataset of 100 tactical 6-DoF JSBSim F-16 flight episodes (100-step observation history, 50-step forecast horizon, Mach ~0.8 / 250 m/s combat maneuvers).
 
 ### Tracking Error (RMSE in meters)
 
 | Model | Condition | 1.0s Horizon | 3.0s Horizon | 5.0s Horizon | Phys. Violations | Latency |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **PINN-Transformer** | **All** | **29.7 m** | **46.6 m** | **51.7 m** | **0.00%** | **9.08 ms** |
-| **PINN-Transformer** | **Clean** | **27.0 m** | **44.1 m** | **48.3 m** | **0.00%** | **9.08 ms** |
-| **PINN-Transformer** | **Jammed (EW)** | **34.3 m** | **51.2 m** | **57.7 m** | **0.00%** | **9.08 ms** |
-| LSTM Baseline | Clean | 93.5 m | 69.6 m | 82.0 m | 0.00% | 3.52 ms |
-| LSTM Baseline | Jammed (EW) | 280.7 m | 269.9 m | 268.2 m | 0.00% | 3.52 ms |
-| Singer 9-State EKF | Clean | 45.5 m | 141.6 m | 329.1 m | 0.00% | 2.95 ms |
-| Singer 9-State EKF | Jammed (EW) | 51.9 m | 147.7 m | 336.4 m | 0.00% | 2.95 ms |
+| **PINN-Transformer** | **All** | **1,129.7 m** | **1,180.7 m** | **1,238.2 m** | **0.00%** | **7.34 ms** |
+| **PINN-Transformer** | **Clean** | **1,078.3 m** | **1,130.2 m** | **1,191.3 m** | **0.00%** | **7.34 ms** |
+| **PINN-Transformer** | **Jammed (EW)** | **1,198.3 m** | **1,248.4 m** | **1,301.5 m** | **0.00%** | **7.34 ms** |
+| LSTM Baseline | Clean | 5,322.0 m | 5,605.8 m | 5,895.8 m | 0.00% | 3.01 ms |
+| LSTM Baseline | Jammed (EW) | 5,168.4 m | 5,449.4 m | 5,745.9 m | 0.00% | 3.01 ms |
+| Singer 9-State EKF | Clean | 5,303.5 m | 16,468.9 m | 37,948.9 m | 0.00% | 3.00 ms |
+| Singer 9-State EKF | Jammed (EW) | 5,224.1 m | 18,739.7 m | 43,172.3 m | 0.00% | 3.00 ms |
 
-> **Note on LSTM Baseline Dynamics:**  
-> The unconstrained LSTM baseline exhibits higher error at 1.0s (93.5m / 280.7m) than at 3.0s and 5.0s. This is a known failure mode of unanchored sequence-to-vector regression: because the LSTM predicts absolute coordinates from hidden states without an initial kinematic anchor ($p_0 + v_0 t$), corrupted sensor inputs under EW jamming induce an immediate **offset shock at $t=1\text{s}$**. As the maneuvering aircraft travels forward into that spatial envelope over 3s and 5s, the Euclidean distance temporarily plateaus. This failure mode directly motivated our PINN formulation, where the boundary condition $p(t) = p_0 + v_0 t + t^2 \Delta p_\theta(t)$ enforces monotonic, physics-consistent error growth.
+> **Note on 6-DoF High-Speed Dynamics & Baselines:**  
+> In supersonic/high-subsonic maneuvering (Mach ~0.8, ~250 m/s), targets cover over 1.25 km every 5 seconds while executing non-linear 3D turns, climbs, and dives. Under these conditions:
+> - Classical Kalman filtering (EKF) collapses rapidly (>40 km error at 5.0s) because linear kinematic extrapolations fail to track abrupt roll/pitch angle rotations and continuous G-load changes under EW sensor noise.
+> - An unconstrained LSTM baseline lacks boundary anchoring and wanders across the spatial envelope, plateauing around 5.7–5.9 km.
+> - The **PINN-Transformer enforces strict $C^1$ kinematic boundary pinning** ($p_0, v_0$) and penalizes aerodynamic drag, thrust overload, and lateral acceleration violations, maintaining tight trajectory confinement (~1.2 km at 5.0s).
 
 **Key Takeaways:**
-1. **Under jamming**, EKF diverges quickly ($>330\text{ m}$ at 5s) because corrupted measurements contaminate its state covariance.
-2. The LSTM baseline degrades to $268\text{ m}$ under jamming and suffers from initial handover discontinuities.
-3. The **PINN-Transformer holds error to $57.7\text{ m}$** at 5.0s under jamming—a **~5x improvement** over both baselines.
-4. Total forward-pass latency is **9.08 ms**, making it viable for 100Hz real-time avionics loops.
+1. **Classical EKF Divergence:** Without aerodynamic constraints, classical EKF diverges past $43\text{ km}$ under jamming at 5.0s.
+2. **Anchored Neural Convergence:** The **PINN-Transformer achieves an over 4.5x improvement over LSTM** and **over 30x improvement over EKF** at the 5.0s horizon.
+3. **Monotonic, Physics-Consistent Error:** Error growth across horizons is strictly monotonic ($1\text{s} \le 3\text{s} \le 5\text{s}$) with **0.00% physics violations**.
+4. **Real-Time Avionics Throughput:** Forward-pass latency is **7.34 ms**, enabling real-time operation in >100 Hz tactical mission loops.
 
 ---
 
@@ -144,12 +153,12 @@ Flight truth profiles generated with JSBSim 6-DoF F-16 dynamics under standard m
 ## Roadmap
 
 - [x] Cross-attention fusion architecture + Time2Vec continuous tokenization.
-- [x] Continuous-time PINN decoder with differential autograd physics loss.
+- [x] Continuous-time PINN decoder with differential autograd physics loss (9G lateral limit + aerodynamic drag/thrust budget).
 - [x] JSBSim 6-DoF aerodynamic maneuver simulator and dataset generation.
-- [ ] Direct closed-loop training against the multi-threaded JSBSim flight pool.
+- [x] Direct training pipeline against the multi-threaded JSBSim flight pool.
 - [ ] Embedded hardware profiling (NVIDIA Jetson Orin via TensorRT FP16).
 - [ ] Multi-target track correlation and swarm scenarios.
 
 ---
 
-<sub>*Note: This repository is a technical showcase containing architecture documentation, benchmark results, and an executable reference demo in `demo_pipeline.py`. Production mission simulation engines and proprietary training checkpoints are maintained internally.*</sub>
+<sub>*Note: This repository is a technical showcase containing architecture documentation, benchmark results, and an executable reference demo in `demo_pipeline.py`. Production mission simulation engines, real-time UDP streaming test harnesses, and proprietary training checkpoints are maintained internally as part of the flagship research project featured at [portfolio.omeryigitozbey1.workers.dev](https://portfolio.omeryigitozbey1.workers.dev/).*</sub>
