@@ -206,6 +206,19 @@ Flight truth profiles generated with JSBSim 6-DoF F-16 dynamics under standard m
 
 ---
 
+## Development Methodology & AI-Assisted Engineering
+
+This project originated as a solo research and engineering effort—architecting the asynchronous multi-sensor fusion pipeline, continuous-time PINN formulation, $C^1$ kinematic boundary pinning, and classical EKF tracking baselines from first principles.
+
+As the system expanded into 6-DoF nonlinear flight regimes and Electronic Warfare dynamics, I integrated state-of-the-art Large Language Model (LLM) reasoning and coding agents into the engineering workflow as technical copilots and research accelerators. This human-directed, AI-augmented workflow was leveraged to:
+* **Accelerate Statistical Ablation Studies:** Rapidly orchestrating, executing, and aggregating multi-condition ablation runs (e.g., initial state error decomposition and along-track vs. cross-track geometric error splits across 1,060 evaluation windows).
+* **Root-Cause Analysis & Diagnostics:** Rigorously auditing baseline divergence edge cases—most notably isolating the circular innovation wrapping defect in the classical Singer EKF under high-bearing measurements.
+* **Simulation Harness Scaling:** Implementing and validating the offline JSBSim 6-DoF aerodynamic maneuver simulator and automated batch evaluation pipelines.
+
+All system architecture, mathematical loss formulations, aerodynamic constraints, and empirical results were conceived, directed, and verified against 6-DoF F-16 flight truth data.
+
+---
+
 ## Tech Stack
 
 * **Frameworks:** PyTorch, NumPy, SciPy
