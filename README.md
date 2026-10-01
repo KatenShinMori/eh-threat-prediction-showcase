@@ -7,7 +7,7 @@
 
 Target tracking algorithms usually break down when exposed to active Electronic Warfare (EW)—such as radar noise jamming, range-gate pull-off (RGPO), or intermittent packet drops. Classical filters (EKF) diverge, while generic deep learning baselines (LSTM) often output trajectories that violate basic aerodynamics (e.g., predicting an aircraft pulling 20G+ maneuvers).
 
-This repository serves as the public technical verification showcase for the research-grade EW-resilient trajectory prediction and multi-sensor fusion engine featured at [portfolio.omeryigitozbey1.workers.dev](https://portfolio.omeryigitozbey1.workers.dev/).
+This repository serves as the public technical verification showcase for the research-grade EW-resilient trajectory prediction and multi-sensor fusion engine
 
 The hybrid deep learning pipeline combines:
 1. **Cross-Attention Transformer:** Fuses asynchronous, multi-rate sensor inputs (Radar, EO/IR, ESM) and uses reliability gating to automatically down-weight jammed sensors.
